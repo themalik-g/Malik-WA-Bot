@@ -12,9 +12,7 @@ const pino = require('pino');
 const readline = require('readline');
 const { rmSync } = require('fs');
 const store = require('./lib/lightweight_store');
-const { loadBaileys } = require('./lib/baileys');
 const { startScheduler } = require('./lib/scheduler');
-const PluginManager = require('./plugins/_loader');
 
 // ─── CONFIG ──────────────────────────────────────────────
 const STABILITY_CONFIG = {
@@ -97,7 +95,7 @@ async function startXeonBotInc() {
     isConnecting = true;
 
     try {
-        const baileys = await loadBaileys();
+        const baileys = require('@whiskeysockets/baileys');
         const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, jidDecode, jidNormalizedUser, makeCacheableSignalKeyStore, delay } = baileys;
         const { version } = await fetchLatestBaileysVersion();
         const { state, saveCreds } = await useMultiFileAuthState(`./session`);
@@ -105,7 +103,6 @@ async function startXeonBotInc() {
         const sock = makeWASocket({
             version,
             logger: pino({ level: 'silent' }),
-            printQRInTerminal: !pairingCode,
             browser: ["Ubuntu", "Chrome", "20.0.04"],
             auth: {
                 creds: state.creds,
@@ -230,17 +227,13 @@ async function startXeonBotInc() {
         });
 
         sock.ev.on('connection.update', async (s) => {
-            const { connection, lastDisconnect, qr } = s;
-            if (qr) console.log(chalk.yellow('📱 QR Code generated.'));
+            const { connection, lastDisconnect } = s;
             if (connection === 'connecting') console.log(chalk.yellow('🔄 Connecting...'));
             if (connection === 'open') {
                 resetReconnectDelay();
                 console.log(chalk.magenta(` `));
                 console.log(chalk.yellow(`🌿Connected to => ` + JSON.stringify(sock.user, null, 2)));
                 startScheduler(sock);
-                const pluginManager = new PluginManager(sock);
-                pluginManager.registerEventHandlers();
-                sock.pluginManager = pluginManager;
                 try {
                     const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                     await sock.sendMessage(botNumber, {
