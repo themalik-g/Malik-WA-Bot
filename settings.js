@@ -3,10 +3,10 @@ const settings = {
   author: '‎',
   botName: "MEHTAB-MD",
   botOwner: 'MALIK MEHTAB', // Your name
-  ownerNumber: '923001234567', //Set your number here without + symbol, just add country code & number without any space
+  ownerNumber: '923257853673', //Set your number here without + symbol, just add country code & number without any space
   giphyApiKey: process.env.GIPHY_API_KEY || '',
   commandMode: "public",
-  maxStoreMessages: 20,
+  maxStoreMessages: 200,
   storeWriteInterval: 10000,
   description: "This is a bot for managing group commands and automating tasks.",
   version: "3.0.7",
