@@ -2,242 +2,69 @@ const settings = require('../settings');
 const fs = require('fs');
 const path = require('path');
 
+// Category order and display names
+const categoryMap = {
+    'general': { emoji: '🌐', title: 'ɢᴇɴᴇʀᴀʟ' },
+    'admin':   { emoji: '👮‍♂️', title: 'ᴀᴅᴍɪɴ' },
+    'owner':   { emoji: '🔒', title: 'ᴏᴡɴᴇʀ' },
+    'image':   { emoji: '🎨', title: 'ɪᴍᴀɢᴇ / ꜱᴛɪᴄᴋᴇʀ' },
+    'pies':    { emoji: '🖼️', title: 'ᴘɪᴇꜱ' },
+    'game':    { emoji: '🎮', title: 'ɢᴀᴍᴇ' },
+    'ai':      { emoji: '🤖', title: 'ᴀɪ' },
+    'fun':     { emoji: '🎯', title: 'ꜰᴜɴ' },
+    'textmaker': { emoji: '🔤', title: 'ᴛᴇXᴛᴍᴀᴋᴇʀ 🔢' },
+    'downloader': { emoji: '📥', title: 'ᴅᴏᴡɴʟᴏᴀᴅᴇʀ' },
+    'misc':    { emoji: '🧩', title: 'ᴍɪꜱᴄ' },
+    'anime':   { emoji: '🖼️', title: 'ᴀɴɪᴍᴇ' },
+    'github':  { emoji: '💻', title: 'ɢɪᴛʜᴜʙ' },
+    'plugin':  { emoji: '📦', title: 'ᴘʟᴜɢɪɴꜱ' },  // for plugins
+    'uncategorized': { emoji: '📎', title: 'ᴜɴᴄᴀᴛᴇɢᴏʀɪᴢᴇᴅ' }
+};
+
 async function helpCommand(sock, chatId, message) {
-    const helpMessage = `┌──────────────────┈⚝
+    // Collect all commands
+    const builtIn = global.commands || [];
+    const plugins = global.pluginCommands || [];
+    const allCommands = [...builtIn, ...plugins];
+
+    // Group by category
+    const groups = {};
+    for (const cmd of allCommands) {
+        let cat = cmd.category || 'uncategorized';
+        cat = cat.toLowerCase();
+        if (!groups[cat]) groups[cat] = [];
+        const isPlugin = plugins.includes(cmd) ? ' 📦' : '';
+        const ownerOnly = cmd.ownerOnly ? ' 🔒' : '';
+        const desc = cmd.desc ? ` - ${cmd.desc}` : '';
+        groups[cat].push(`◈ .${cmd.name}${isPlugin}${ownerOnly}${desc}`);
+    }
+
+    // Build the help text
+    let helpMessage = `┌──────────────────┈⚝
    *🤖 ${settings.botName || 'MEHTAB-MD'}*
    Version: *${settings.version || '3.0.7'}*
    by ${settings.botOwner || 'MALIK MEHTAB'}
    YT : ${settings.botOwner || 'MALIK MEHTAB'}
-└──────────────────┈⚝
+└──────────────────┈⚝\n\n`;
 
-┌──❮ 🌐 ɢᴇɴᴇʀᴀʟ ❮
-│
-│ ◈ .help or .menu
-│ ◈ .ping
-│ ◈ .alive
-│ ◈ .tts <text>
-│ ◈ .owner
-│ ◈ .joke
-│ ◈ .quote
-│ ◈ .fact
-│ ◈ .weather <city>
-│ ◈ .news
-│ ◈ .attp <text>
-│ ◈ .lyrics <song_title>
-│ ◈ .8ball <question>
-│ ◈ .groupinfo
-│ ◈ .staff or .admins
-│ ◈ .vv
-│ ◈ .trt <text> <lang>
-│ ◈ .ss <link>
-│ ◈ .jid
-│ ◈ .url
-│
-└───────────────┈⚝
+    // Iterate in a defined order
+    const orderedCategories = ['general', 'admin', 'owner', 'image', 'pies', 'game', 'ai', 'fun', 'textmaker', 'downloader', 'misc', 'anime', 'github', 'plugin', 'uncategorized'];
+    for (const cat of orderedCategories) {
+        if (!groups[cat] || groups[cat].length === 0) continue;
+        const info = categoryMap[cat] || { emoji: '📌', title: cat.toUpperCase() };
+        helpMessage += `┌──❮ ${info.emoji} ${info.title} ❯\n│\n`;
+        helpMessage += groups[cat].join('\n') + '\n│\n└───────────────┈⚝\n\n';
+    }
 
-┌──❮ 👮‍♂️ ᴀᴅᴍɪɴ ❮
-│
-│ ◈ .ban @user
-│ ◈ .promote @user
-│ ◈ .demote @user
-│ ◈ .mute <minutes>
-│ ◈ .unmute
-│ ◈ .delete or .del
-│ ◈ .kick @user
-│ ◈ .warnings @user
-│ ◈ .warn @user
-│ ◈ .antilink
-│ ◈ .antibadword
-│ ◈ .clear
-│ ◈ .tag <message>
-│ ◈ .tagall
-│ ◈ .tagnotadmin
-│ ◈ .hidetag <message>
-│ ◈ .chatbot
-│ ◈ .resetlink
-│ ◈ .antitag <on/off>
-│ ◈ .welcome <on/off>
-│ ◈ .goodbye <on/off>
-│ ◈ .setgdesc <description>
-│ ◈ .setgname <new name>
-│ ◈ .setgpp (reply to image)
-│
-└───────────────┈⚝
+    // Add plugin count footer
+    helpMessage += `📦 *Plugins loaded:* ${plugins.length}\n`;
+    helpMessage += `💡 *Use .plugin <raw_url> to install new plugins* (owner only)\n`;
 
-┌──❮ 🔒 ᴏᴡɴᴇʀ ❮
-│
-│ ◈ .mode <public/private>
-│ ◈ .clearsession
-│ ◈ .antidelete <p/g/off>
-│ ◈ .cleartmp
-│ ◈ .update
-│ ◈ .settings
-│ ◈ .setpp <reply to image>
-│ ◈ .autoreact <on/off>
-│ ◈ .autostatus <on/off>
-│ ◈ .autostatus react <on/off>
-│ ◈ .autotyping <on/off>
-│ ◈ .autoread <on/off>
-│ ◈ .anticall <on/off>
-│ ◈ .pmblocker <on/off/status>
-│ ◈ .pmblocker setmsg <text>
-│ ◈ .setmention <reply to msg>
-│ ◈ .mention <on/off>
-│
-└───────────────┈⚝
-
-┌──❮ 🎨 ɪᴍᴀɢᴇ / ꜱᴛɪᴄᴋᴇʀ ❮
-│
-│ ◈ .blur <image>
-│ ◈ .simage <reply to sticker>
-│ ◈ .sticker <reply to image>
-│ ◈ .removebg
-│ ◈ .remini
-│ ◈ .crop <reply to image>
-│ ◈ .tgsticker <Link>
-│ ◈ .meme
-│ ◈ .take <packname>
-│ ◈ .emojimix <emj1>+<emj2>
-│ ◈ .igs <insta link>
-│ ◈ .igsc <insta link>
-│
-└───────────────┈⚝
-
-┌──❮ 🖼️ ᴘɪᴇꜱ ❮
-│
-│ ◈ .pies <country>
-│ ◈ .china
-│ ◈ .indonesia
-│ ◈ .japan
-│ ◈ .korea
-│ ◈ .hijab
-│
-└───────────────┈⚝
-
-┌──❮ 🎮 ɢᴀᴍᴇ ❮
-│
-│ ◈ .tictactoe @user
-│ ◈ .hangman
-│ ◈ .guess <letter>
-│ ◈ .trivia
-│ ◈ .answer <answer>
-│ ◈ .truth
-│ ◈ .dare
-│
-└───────────────┈⚝
-
-┌──❮ 🤖 ᴀɪ ❮
-│
-│ ◈ .gpt <question>
-│ ◈ .gemini <question>
-│ ◈ .imagine <prompt>
-│ ◈ .flux <prompt>
-│ ◈ .sora <prompt>
-│
-└───────────────┈⚝
-
-┌──❮ 🎯 ꜰᴜɴ ❮
-│
-│ ◈ .compliment @user
-│ ◈ .insult @user
-│ ◈ .flirt
-│ ◈ .shayari
-│ ◈ .goodnight
-│ ◈ .roseday
-│ ◈ .character @user
-│ ◈ .wasted @user
-│ ◈ .ship @user
-│ ◈ .simp @user
-│ ◈ .stupid @user [text]
-│
-└───────────────┈⚝
-
-┌──❮ 🔤 ᴛᴇXᴛᴍᴀᴋᴇʀ 🔢 ❯
-│
-│ ◈ .metallic <text>
-│ ◈ .ice <text>
-│ ◈ .snow <text>
-│ ◈ .impressive <text>
-│ ◈ .matrix <text>
-│ ◈ .light <text>
-│ ◈ .neon <text>
-│ ◈ .devil <text>
-│ ◈ .purple <text>
-│ ◈ .thunder <text>
-│ ◈ .leaves <text>
-│ ◈ .1917 <text>
-│ ◈ .arena <text>
-│ ◈ .hacker <text>
-│ ◈ .sand <text>
-│ ◈ .blackpink <text>
-│ ◈ .glitch <text>
-│ ◈ .fire <text>
-│
-└───────────────┈⚝
-
-┌──❮ 📥 ᴅᴏᴡɴʟᴏᴀᴅᴇʀ ❮
-│
-│ ◈ .play <song_name>
-│ ◈ .song <song_name>
-│ ◈ .spotify <query>
-│ ◈ .instagram <link>
-│ ◈ .facebook <link>
-│ ◈ .tiktok <link>
-│ ◈ .video <song name>
-│ ◈ .ytmp4 <Link>
-│
-└───────────────┈⚝
-
-┌──❮ 🧩 ᴍɪꜱᴄ ❮
-│
-│ ◈ .heart
-│ ◈ .horny
-│ ◈ .circle
-│ ◈ .lgbt
-│ ◈ .lolice
-│ ◈ .its-so-stupid
-│ ◈ .namecard
-│ ◈ .oogway
-│ ◈ .tweet
-│ ◈ .ytcomment
-│ ◈ .comrade
-│ ◈ .gay
-│ ◈ .glass
-│ ◈ .jail
-│ ◈ .passed
-│ ◈ .triggered
-│
-└───────────────┈⚝
-
-┌──❮ 🖼️ ᴀɴɪᴍᴇ ❮
-│
-│ ◈ .nom
-│ ◈ .poke
-│ ◈ .cry
-│ ◈ .kiss
-│ ◈ .pat
-│ ◈ .hug
-│ ◈ .wink
-│ ◈ .facepalm
-│
-└───────────────┈⚝
-
-┌──❮ 💻 ɢɪᴛʜᴜʙ ❮
-│
-│ ◈ .git
-│ ◈ .github
-│ ◈ .sc
-│ ◈ .script
-│ ◈ .repo
-│
-└───────────────┈⚝`;
-
+    // Send with image if exists
     try {
         const imagePath = path.join(__dirname, '../assets/bot_image.jpg');
-
         if (fs.existsSync(imagePath)) {
             const imageBuffer = fs.readFileSync(imagePath);
-
             await sock.sendMessage(chatId, {
                 image: imageBuffer,
                 caption: helpMessage,
@@ -250,9 +77,8 @@ async function helpCommand(sock, chatId, message) {
                         serverMessageId: -1
                     }
                 }
-            },{ quoted: message });
+            }, { quoted: message });
         } else {
-            console.error('Bot image not found at:', imagePath);
             await sock.sendMessage(chatId, {
                 text: helpMessage,
                 contextInfo: {
