@@ -1,4 +1,5 @@
 require('./settings');
+require('./plugins/_loader');   // <-- add this line
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const chalk = require('chalk');
