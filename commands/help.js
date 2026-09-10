@@ -22,18 +22,25 @@ const categoryMap = {
 };
 
 async function helpCommand(sock, chatId, message) {
-    // Collect all commands
-    const builtIn = global.commands || [];
+    let allCommands = [];
+    try {
+        const { getAllCommands } = require('../lib/commandLoader');
+        allCommands = getAllCommands();
+    } catch (e) {
+        const builtIn = global.commands || [];
+        const plugins = global.pluginCommands || [];
+        allCommands = [...builtIn, ...plugins];
+    }
+
     const plugins = global.pluginCommands || [];
-    const allCommands = [...builtIn, ...plugins];
 
     // Group by category
     const groups = {};
     for (const cmd of allCommands) {
-        let cat = cmd.category || 'uncategorized';
+        let cat = cmd.category || 'general';
         cat = cat.toLowerCase();
         if (!groups[cat]) groups[cat] = [];
-        const isPlugin = plugins.includes(cmd) ? ' 📦' : '';
+        const isPlugin = cmd.isPlugin || plugins.some(p => p.name === cmd.name) ? ' 📦' : '';
         const ownerOnly = cmd.ownerOnly ? ' 🔒' : '';
         const desc = cmd.desc ? ` - ${cmd.desc}` : '';
         groups[cat].push(`◈ .${cmd.name}${isPlugin}${ownerOnly}${desc}`);
@@ -47,9 +54,10 @@ async function helpCommand(sock, chatId, message) {
    YT : ${settings.botOwner || 'MALIK MEHTAB'}
 └──────────────────┈⚝\n\n`;
 
-    // Iterate in a defined order
+    // Iterate in a defined order + any remaining categories
     const orderedCategories = ['general', 'admin', 'owner', 'image', 'pies', 'game', 'ai', 'fun', 'textmaker', 'downloader', 'misc', 'anime', 'github', 'plugin', 'uncategorized'];
-    for (const cat of orderedCategories) {
+    const allCategories = Array.from(new Set([...orderedCategories, ...Object.keys(groups)]));
+    for (const cat of allCategories) {
         if (!groups[cat] || groups[cat].length === 0) continue;
         const info = categoryMap[cat] || { emoji: '📌', title: cat.toUpperCase() };
         helpMessage += `┌──❮ ${info.emoji} ${info.title} ❯\n│\n`;

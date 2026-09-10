@@ -37,13 +37,50 @@ let crashCount = 0,
     isConnecting = false,
     gcTimer = null,
     storeTimer = null,
-    memoryTimer = null;
+    memoryTimer = null,
+    sessionCleanTimer = null;
 store.readFromFile();
 const settings = require('./settings');
+
+function autoCleanSession() {
+    try {
+        const sessionDir = path.join(__dirname, 'session');
+        if (!fs.existsSync(sessionDir)) return;
+        const files = fs.readdirSync(sessionDir);
+        let count = 0;
+        const now = Date.now();
+        // Only clean app-state-sync files older than 24 hours to preserve active session keys
+        const maxAge = 24 * 60 * 60 * 1000;
+        for (const file of files) {
+            if (file === 'creds.json' || file.startsWith('pre-key-') || file.startsWith('sender-key-') || file.startsWith('session-')) {
+                continue; // Do NOT delete active encryption keys!
+            }
+            if (file.startsWith('app-state-sync-')) {
+                try {
+                    const filePath = path.join(sessionDir, file);
+                    const stats = fs.statSync(filePath);
+                    if (now - stats.mtimeMs > maxAge) {
+                        fs.unlinkSync(filePath);
+                        count++;
+                    }
+                } catch (e) {}
+            }
+        }
+        if (count > 0) {
+            console.log(`🧹 Auto-cleaned ${count} stale app-state file(s).`);
+        }
+    } catch (e) {
+        console.error('Session auto-clean error:', e.message);
+    }
+}
 
 storeTimer = setInterval(() => {
     try { store.writeToFile(); } catch (e) { console.error('Store write error:', e.message); }
 }, settings.storeWriteInterval || STABILITY_CONFIG.storeWriteInterval);
+
+sessionCleanTimer = setInterval(() => {
+    autoCleanSession();
+}, 3600000); // Auto-clean every hour
 
 gcTimer = setInterval(() => {
     try { if (global.gc) { global.gc(); const used = process.memoryUsage().rss / 1024 / 1024; if (used > 150) console.log(`🧹 GC | RAM: ${used.toFixed(1)}MB`); } } catch (e) {}
@@ -100,13 +137,14 @@ async function startXeonBotInc() {
         const { version } = await fetchLatestBaileysVersion();
         const { state, saveCreds } = await useMultiFileAuthState(`./session`);
         const msgRetryCounterCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+        const logger = pino({ level: 'silent' });
         const sock = makeWASocket({
             version,
-            logger: pino({ level: 'silent' }),
+            logger,
             browser: ["Ubuntu", "Chrome", "20.0.04"],
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                keys: makeCacheableSignalKeyStore(state.keys, logger.child({ level: "silent" })),
             },
             markOnlineOnConnect: true,
             generateHighQualityLinkPreview: false,
@@ -120,8 +158,8 @@ async function startXeonBotInc() {
             defaultQueryTimeoutMs: STABILITY_CONFIG.defaultQueryTimeout,
             connectTimeoutMs: STABILITY_CONFIG.connectionTimeout,
             keepAliveIntervalMs: STABILITY_CONFIG.keepAliveInterval,
-            retryRequestDelayMs: 250,
-            maxMsgRetryCount: 3,
+            retryRequestDelayMs: 500,
+            maxMsgRetryCount: 1,
             fireInitQueries: true,
             shouldSyncHistoryMessage: () => false,
             shouldIgnoreJid: (jid) => jid === 'status@broadcast',
@@ -202,8 +240,18 @@ async function startXeonBotInc() {
                     if (!isGroup) return;
                 }
                 if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return;
-                try { await handleMessages(sock, chatUpdate, true); } catch (err) { console.error("Error in handleMessages:", err); }
-            } catch (err) { console.error("Error in messages.upsert:", err); }
+                try {
+                    await handleMessages(sock, chatUpdate, true);
+                } catch (err) {
+                    if (!err?.message?.includes('Bad MAC') && !err?.message?.includes('MAC mismatch')) {
+                        console.error("Error in handleMessages:", err);
+                    }
+                }
+            } catch (err) {
+                if (!err?.message?.includes('Bad MAC') && !err?.message?.includes('MAC mismatch')) {
+                    console.error("Error in messages.upsert:", err);
+                }
+            }
         });
 
         sock.ev.on('messages.update', async (updates) => {
@@ -234,6 +282,7 @@ async function startXeonBotInc() {
                 console.log(chalk.magenta(` `));
                 console.log(chalk.yellow(`🌿Connected to => ` + JSON.stringify(sock.user, null, 2)));
                 startScheduler(sock);
+                autoCleanSession();
                 try {
                     const botNumber = sock.user.id.split(':')[0] + '@s.whatsapp.net';
                     await sock.sendMessage(botNumber, {
@@ -322,10 +371,14 @@ async function startXeonBotInc() {
 }
 
 // ─── PROCESS HANDLERS ────────────────────────────────────
-process.on('uncaughtException', (err) => { console.error('⚠️ Uncaught Exception:', err.message); });
-process.on('unhandledRejection', (err) => { console.error('⚠️ Unhandled Rejection:', err?.message || err); });
-process.on('SIGTERM', () => { console.log('SIGTERM received. Cleaning up...'); if (storeTimer) clearInterval(storeTimer); if (gcTimer) clearInterval(gcTimer); if (memoryTimer) clearInterval(memoryTimer); process.exit(0); });
-process.on('SIGINT', () => { console.log('SIGINT received. Cleaning up...'); if (storeTimer) clearInterval(storeTimer); if (gcTimer) clearInterval(gcTimer); if (memoryTimer) clearInterval(memoryTimer); process.exit(0); });
+process.on('uncaughtException', (err) => {
+    console.error('⚠️ Uncaught Exception:', err.message || err);
+});
+process.on('unhandledRejection', (err) => {
+    console.error('⚠️ Unhandled Rejection:', err?.message || err);
+});
+process.on('SIGTERM', () => { console.log('SIGTERM received. Cleaning up...'); if (storeTimer) clearInterval(storeTimer); if (gcTimer) clearInterval(gcTimer); if (memoryTimer) clearInterval(memoryTimer); if (sessionCleanTimer) clearInterval(sessionCleanTimer); process.exit(0); });
+process.on('SIGINT', () => { console.log('SIGINT received. Cleaning up...'); if (storeTimer) clearInterval(storeTimer); if (gcTimer) clearInterval(gcTimer); if (memoryTimer) clearInterval(memoryTimer); if (sessionCleanTimer) clearInterval(sessionCleanTimer); process.exit(0); });
 
 startXeonBotInc().catch(error => {
     console.error('Fatal startup error:', error);
