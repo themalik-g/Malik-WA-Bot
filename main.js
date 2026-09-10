@@ -80,81 +80,8 @@ const { readPmBlockerState } = require('./commands/pmblocker');
 // Plugin commands are loaded by plugins/_loader.js into global.pluginCommands
 // This is the dynamic command registry that includes both built-in and plugin commands
 
-// ─── Helper: Get all commands (built-in + plugins) ─────────
-function getAllCommands() {
-    const builtIn = [
-        { name: 'help', fn: helpCommand },
-        { name: 'menu', fn: helpCommand },
-        { name: 'bot', fn: helpCommand },
-        { name: 'list', fn: helpCommand },
-        { name: 'ban', fn: banCommand },
-        { name: 'unban', fn: unbanCommand },
-        { name: 'promote', fn: promoteCommand },
-        { name: 'demote', fn: demoteCommand },
-        { name: 'mute', fn: muteCommand },
-        { name: 'unmute', fn: unmuteCommand },
-        { name: 'sticker', fn: stickerCommand },
-        { name: 's', fn: stickerCommand },
-        { name: 'tagall', fn: tagAllCommand },
-        { name: 'tagnotadmin', fn: tagNotAdminCommand },
-        { name: 'hidetag', fn: hideTagCommand },
-        { name: 'warn', fn: warnCommand },
-        { name: 'warnings', fn: warningsCommand },
-        { name: 'tts', fn: ttsCommand },
-        { name: 'tictactoe', fn: tictactoeCommand },
-        { name: 'topmembers', fn: topMembers },
-        { name: 'owner', fn: ownerCommand },
-        { name: 'delete', fn: deleteCommand },
-        { name: 'del', fn: deleteCommand },
-        { name: 'antilink', fn: handleAntilinkCommand },
-        { name: 'antitag', fn: handleAntitagCommand },
-        { name: 'antidelete', fn: handleAntideleteCommand },
-        { name: 'autotyping', fn: autotypingCommand },
-        { name: 'autoread', fn: autoreadCommand },
-        { name: 'mention', fn: mentionToggleCommand },
-        { name: 'setmention', fn: setMentionCommand },
-        { name: 'meme', fn: memeCommand },
-        { name: 'tag', fn: tagCommand },
-        { name: 'joke', fn: jokeCommand },
-        { name: 'quote', fn: quoteCommand },
-        { name: 'fact', fn: factCommand },
-        { name: 'weather', fn: weatherCommand },
-        { name: 'news', fn: newsCommand },
-        { name: 'kick', fn: kickCommand },
-        { name: 'simage', fn: simageCommand },
-        { name: 'attp', fn: attpCommand },
-        { name: 'hangman', fn: startHangman },
-        { name: 'trivia', fn: startTrivia },
-        { name: 'compliment', fn: complimentCommand },
-        { name: 'insult', fn: insultCommand },
-        { name: '8ball', fn: eightBallCommand },
-        { name: 'lyrics', fn: lyricsCommand },
-        { name: 'dare', fn: dareCommand },
-        { name: 'truth', fn: truthCommand },
-        { name: 'clear', fn: clearCommand },
-        { name: 'ping', fn: pingCommand },
-        { name: 'chatbot', fn: chatbotResponse },
-    ];
-
-    // Merge with plugin commands (loaded by _loader.js)
-    const pluginCommands = global.pluginCommands || [];
-    const all = [...builtIn];
-
-    // Add plugin commands (avoid duplicates)
-    for (const p of pluginCommands) {
-        if (!all.find(c => c.name === p.name)) {
-            all.push({ name: p.name, fn: p.run, isPlugin: true });
-        }
-    }
-
-    return all;
-}
-
-// ─── Helper: Find command by name ──────────────────────────
-function findCommand(name) {
-    const all = getAllCommands();
-    return all.find(c => c.name === name);
-}
+// ─── Import Command Loader ──────────────────────────────────
+const { getAllCommands, findCommand } = require('./lib/commandLoader');
 
 // ─── Message Handler ────────────────────────────────────────
 async function handleMessages(sock, chatUpdate) {
