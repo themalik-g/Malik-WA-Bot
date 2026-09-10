@@ -239,7 +239,9 @@ async function startXeonBotInc() {
                     const isGroup = mek.key?.remoteJid?.endsWith('@g.us');
                     if (!isGroup) return;
                 }
-                if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return;
+                // Allow messages sent from self if they are user commands starting with '.'
+                const txt = mek.message?.conversation || mek.message?.extendedTextMessage?.text || mek.message?.imageMessage?.caption || mek.message?.videoMessage?.caption || '';
+                if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16 && !txt.startsWith('.')) return;
                 try {
                     await handleMessages(sock, chatUpdate, true);
                 } catch (err) {

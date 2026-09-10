@@ -52,27 +52,30 @@ async function viewonceCommand(sock, chatId, message) {
 
         if (!buffer) throw new Error('Download failed');
 
-        let mime = 'document';
-        let ext = 'bin';
-        if (mediaMsg.imageMessage) {
-            mime = 'image';
-            ext = 'jpg';
-        } else if (mediaMsg.videoMessage) {
-            mime = 'video';
-            ext = 'mp4';
+        let mimeType = 'document';
+        let caption = '📸 View‑once media saved!';
+
+        if (mediaMsg.imageMessage || msgType === 'imageMessage') {
+            mimeType = 'image';
+            const imgCap = (mediaMsg.imageMessage || mediaMsg).caption;
+            if (imgCap) caption += `\n\n📝 Caption: ${imgCap}`;
+        } else if (mediaMsg.videoMessage || msgType === 'videoMessage') {
+            mimeType = 'video';
+            const vidCap = (mediaMsg.videoMessage || mediaMsg).caption;
+            if (vidCap) caption += `\n\n📝 Caption: ${vidCap}`;
         } else if (mediaMsg.audioMessage) {
-            mime = 'audio';
-            ext = 'mp3';
-        } else {
-            mime = 'document';
-            ext = 'bin';
+            mimeType = 'audio';
         }
 
-        await sock.sendMessage(chatId, {
-            [mime]: buffer,
-            fileName: `viewonce.${ext}`,
-            caption: '📸 View‑once media saved!'
-        }, { quoted: message });
+        if (mimeType === 'image') {
+            await sock.sendMessage(chatId, { image: buffer, caption }, { quoted: message });
+        } else if (mimeType === 'video') {
+            await sock.sendMessage(chatId, { video: buffer, caption }, { quoted: message });
+        } else if (mimeType === 'audio') {
+            await sock.sendMessage(chatId, { audio: buffer, mimetype: mediaMsg.audioMessage?.mimetype || 'audio/mp4', ptt: false }, { quoted: message });
+        } else {
+            await sock.sendMessage(chatId, { document: buffer, mimetype: 'application/octet-stream', fileName: 'viewonce.bin', caption }, { quoted: message });
+        }
 
     } catch (error) {
         console.error('ViewOnce error:', error);

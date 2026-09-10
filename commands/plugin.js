@@ -1,5 +1,5 @@
 // commands/plugin.js
-const fs = require('fs-extra');
+const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { ownerNumber } = require('../settings'); // use your owner check
@@ -10,9 +10,19 @@ module.exports = {
     category: 'owner',
     desc: 'Install a plugin from a raw GitHub/Gist URL (owner only)',
     ownerOnly: true,   // add this if your handler respects ownerOnly
-    async run(m, sock, args) {
-        if (!args.length) {
-            return await sock.sendMessage(m.chat, { text: '📎 Usage: .Plugin <raw_url>' });
+    async run(sock, chatId, message, ...args) {
+        if (typeof sock === 'object' && sock.chat) {
+            // Called as (m, sock, args)
+            const m = sock;
+            const realSock = chatId;
+            const realArgs = message || [];
+            return this.executePlugin(realSock, m.chat, m.message, realArgs);
+        }
+        return this.executePlugin(sock, chatId, message, args);
+    },
+    async executePlugin(sock, chatId, message, args) {
+        if (!args || !args.length) {
+            return await sock.sendMessage(chatId, { text: '📎 Usage: .Plugin <raw_url>' }, { quoted: message });
         }
         const url = args[0];
         // Security: only raw GitHub/Gist
@@ -29,17 +39,17 @@ module.exports = {
 
         const pluginPath = path.join(__dirname, '../plugins', filename);
         if (fs.existsSync(pluginPath)) {
-            return await sock.sendMessage(m.chat, { text: `⚠️ Plugin "${filename}" already exists.` });
+            return await sock.sendMessage(chatId, { text: `⚠️ Plugin "${filename}" already exists.` }, { quoted: message });
         }
 
-        await sock.sendMessage(m.chat, { text: `⏳ Downloading ...` });
+        await sock.sendMessage(chatId, { text: `⏳ Downloading ...` }, { quoted: message });
         try {
             const content = await downloadFile(url);
             fs.writeFileSync(pluginPath, content, 'utf-8');
             loadPlugins(); // reload plugin list
-            await sock.sendMessage(m.chat, { text: `✅ Plugin **${filename}** installed and active.` });
+            await sock.sendMessage(chatId, { text: `✅ Plugin **${filename}** installed and active.` }, { quoted: message });
         } catch (err) {
-            await sock.sendMessage(m.chat, { text: `❌ Error: ${err.message}` });
+            await sock.sendMessage(chatId, { text: `❌ Error: ${err.message}` }, { quoted: message });
         }
     }
 };

@@ -234,11 +234,19 @@ async function handleMessages(sock, chatUpdate) {
             await handleAutotypingForCommand(sock, chatId, cmdName);
 
             try {
-                // Check if it's a plugin command (needs different signature)
+                // Check if it's a plugin command
                 if (command.isPlugin) {
-                    // Plugin commands expect (m, sock, args)
                     const m = { sender: senderId, chat: chatId, message: message, args: args };
-                    await command.fn(m, sock, args);
+                    // Call plugin function with both standard signatures supported: run(m, sock, args) / fn(m, sock, args) AND fn(sock, chatId, message, ...args)
+                    try {
+                        await command.fn(m, sock, args);
+                    } catch (e) {
+                        if (e.message && e.message.includes('sendMessage')) {
+                            await command.fn(sock, chatId, message, ...args);
+                        } else {
+                            throw e;
+                        }
+                    }
                 } else {
                     // Built-in commands expect (sock, chatId, message, ...)
                     await command.fn(sock, chatId, message, ...args);
