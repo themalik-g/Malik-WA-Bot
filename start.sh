@@ -2,7 +2,7 @@
 # Optimized startup script for 256MB VPS
 
 export NODE_ENV=production
-export NODE_OPTIONS="--max-old-space-size=192 --optimize-for-size --gc-interval=100"
+export NODE_OPTIONS="--max-old-space-size=192"
 
 echo "🚀 Starting MALIK-BOT-MD (Optimized for 256MB RAM)..."
 echo "   Node Options: $NODE_OPTIONS"

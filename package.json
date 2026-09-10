@@ -7,7 +7,11 @@
     "start": "node --max-old-space-size=256 index.js",
     "cleanup": "node cleanup.js",
     "reset-session": "node reset-session.js",
-    "start:fresh": "npm run reset-session && npm start"
+    "start:fresh": "npm run reset-session && npm start",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:restart": "pm2 restart ecosystem.config.js",
+    "pm2:logs": "pm2 logs"
   },
   "license": "ISC",
   "dependencies": {
@@ -48,6 +52,9 @@
     "youtube-yts": "^2.0.0",
     "youtubedl-core": "^4.11.7",
     "yt-search": "^2.12.1"
+  },
+  "devDependencies": {
+    "pm2": "^5.4.3"
   },
   "engines": {
     "node": ">=18.17.0"
