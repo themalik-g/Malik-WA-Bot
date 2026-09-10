@@ -7,7 +7,7 @@ module.exports = {
         max_memory_restart: '220M',
         env: {
             NODE_ENV: 'production',
-            NODE_OPTIONS: '--max-old-space-size=192 --optimize-for-size --gc-interval=100'
+            NODE_OPTIONS: '--max-old-space-size=192'
         },
         error_file: './logs/err.log',
         out_file: './logs/out.log',
